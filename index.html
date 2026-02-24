@@ -19,12 +19,12 @@
                 </div>
             </div>
             
-            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-atomic="false" tabindex="0"></div>
             
             <div class="chat-input-container">
                 <div class="chat-input">
-                    <input type="text" id="userInput" placeholder="Digite sua mensagem..." disabled>
-                    <button class="send-btn" id="sendBtn" disabled>Enviar</button>
+                    <input type="text" id="userInput" placeholder="Digite sua mensagem..." aria-label="Mensagem" disabled>
+                    <button class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>Enviar</button>
                 </div>
             </div>
         </div>
@@ -32,8 +32,8 @@
         <div class="info-panel">
             <div class="info-section">
                 <h3>📊 Estado da Sessão</h3>
-                <p id="sessionStatus">Aguardando identificação</p>
-                <span class="status-badge pending" id="statusBadge">Em Progresso</span>
+                <p id="sessionStatus" role="status" aria-live="polite">Aguardando identificação</p>
+                <span class="status-badge pending" id="statusBadge" aria-hidden="false">Em Progresso</span>
             </div>
             
             <div class="info-section">

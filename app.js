@@ -9,14 +9,16 @@ let conversationState = {
     critical: false,
     protocol: null
 };
-
 const SESSION_KEY = 'alou_cvt_session';
+
+// structured messages storage (safer than storing raw innerHTML)
+let messages = [];
 
 function saveSession() {
     try {
         const sessionData = {
             state: conversationState,
-            html: document.getElementById('chatMessages').innerHTML,
+            messages: messages,
             statusText: document.getElementById('sessionStatus').textContent,
             badgeClass: document.getElementById('statusBadge').className,
             badgeText: document.getElementById('statusBadge').textContent
@@ -60,7 +62,7 @@ const mockAPI = {
 
 // 3. NLP / KEYWORD ANALYSIS
 const analyzeCriticality = (text) => {
-    const criticalKeywords = ['anacom', 'advogado', 'cancelar', 'tribunal', 'urgente', 'polícia', 'processo'];
+    const criticalKeywords = ['arme', 'advogado', 'cancelar', 'tribunal', 'urgente', 'polícia', 'processo'];
     return criticalKeywords.some(keyword => text.toLowerCase().includes(keyword));
 };
 
@@ -71,18 +73,37 @@ const sendBtn = document.getElementById('sendBtn');
 const sessionStatus = document.getElementById('sessionStatus');
 const statusBadge = document.getElementById('statusBadge');
 
-// Categories Configuration
+// Categories Configuration (include explicit `name` for safe display)
+// labelText is the safe plain text; labelHtml is optional trusted HTML used only when trustedHtml=true
 const categories = [
-    { id: 'faturacao', label: '💳 Faturação', desc: 'Problemas com faturas ou cobranças' },
-    { id: 'sinal', label: '📶 Qualidade de Sinal', desc: 'Internet lenta ou sem conexão' },
-    { id: 'tecnico', label: '🔧 Apoio Técnico', desc: 'Problemas com equipamentos' },
-    { id: 'atendimento', label: '👤 Atendimento', desc: 'Questões de serviço ao cliente' },
-    { id: 'outro', label: '📋 Outro', desc: 'Outras situações' }
+    { id: 'faturacao', name: 'Faturação', labelText: 'Faturação - Problemas com faturas ou cobranças', labelHtml: '💳 Faturação - <small>Problemas com faturas ou cobranças</small>', trustedHtml: true },
+    { id: 'sinal', name: 'Qualidade de Sinal', labelText: 'Qualidade de Sinal - Internet lenta ou sem conexão', labelHtml: '📶 Qualidade de Sinal - <small>Internet lenta ou sem conexão</small>', trustedHtml: true },
+    { id: 'tecnico', name: 'Apoio Técnico', labelText: 'Apoio Técnico - Problemas com equipamentos', labelHtml: '🔧 Apoio Técnico - <small>Problemas com equipamentos</small>', trustedHtml: true },
+    { id: 'atendimento', name: 'Atendimento', labelText: 'Atendimento - Questões de serviço ao cliente', labelHtml: '👤 Atendimento - <small>Questões de serviço ao cliente</small>', trustedHtml: true },
+    { id: 'outro', name: 'Outro', labelText: 'Outro - Outras situações', labelHtml: '📋 Outro - <small>Outras situações</small>', trustedHtml: true }
 ];
 
 // Utility Functions
 function scrollToBottom() { chatMessages.scrollTop = chatMessages.scrollHeight; }
 async function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// Validation helper for identification inputs
+function validateIdentification(type, value) {
+    if (!type || !value) return false;
+    const v = value.trim();
+    switch (type) {
+        case 'nif':
+            // NIF em Cabo Verde tem 7 dígitos numéricos
+            return /^[0-9]{7}$/.test(v);
+        case 'conta':
+            return /^[0-9]{6,12}$/.test(v);
+        case 'telemovel':
+            // Telemovel in this context should be 7 digits
+            return /^[0-9]{7}$/.test(v);
+        default:
+            return v.length >= 3;
+    }
+}
 
 // --- METRICS & DYNAMIC KPIs ---
 const defaultKPIs = {
@@ -195,6 +216,7 @@ function updateSessionStatus(status, badge = 'pending') {
 }
 
 function showTyping() {
+    if (document.getElementById('typing')) return; // avoid duplicates
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message bot';
     typingDiv.id = 'typing';
@@ -211,31 +233,73 @@ function hideTyping() {
 function addMessage(text, isUser = false, options = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-    
+
     const bubbleDiv = document.createElement('div');
     bubbleDiv.className = 'message-bubble';
-    bubbleDiv.innerHTML = text;
-    
+    bubbleDiv.setAttribute('role','article');
+    bubbleDiv.setAttribute('aria-label', isUser ? 'Mensagem do utilizador' : 'Mensagem do assistente');
+
+    // sanitize user messages to avoid XSS
+    if (isUser) bubbleDiv.textContent = text;
+    else bubbleDiv.innerHTML = text; // bot messages are trusted in this prototype
+
     if (options) {
         const optionsDiv = document.createElement('div');
         optionsDiv.className = 'options';
-        options.forEach(option => {
+        optionsDiv.setAttribute('role', 'list');
+        options.forEach((option, idx) => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
-            btn.innerHTML = option.label;
+            btn.setAttribute('role', 'option');
+            // render safe labelText by default
+            if (option.labelText) btn.textContent = option.labelText;
+            else if (option.label) btn.textContent = option.label; // fallback
+            // if content is explicitly trusted, render labelHtml (only for known internal sources)
+            if (option.trustedHtml && option.labelHtml) btn.innerHTML = option.labelHtml;
+            btn.setAttribute('aria-label', `Opção: ${option.labelText || option.label || option.id}`);
+
             btn.addEventListener('click', (e) => {
-                // disable other buttons in this option group to prevent double clicks
                 optionsDiv.querySelectorAll('.option-btn:not(:disabled)').forEach(b => b.disabled = true);
-                if (window.handleOptionClick) window.handleOptionClick(option.id, option.label);
+                if (window.handleOptionClick) window.handleOptionClick(option.id, option.labelText || option.label || option.id);
             });
+
+            // keyboard navigation: arrow keys and enter/space activation
+            btn.addEventListener('keydown', (e) => {
+                const focusable = Array.from(optionsDiv.querySelectorAll('.option-btn'));
+                const idx = focusable.indexOf(e.currentTarget);
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = focusable[(idx + 1) % focusable.length];
+                    next.focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = focusable[(idx - 1 + focusable.length) % focusable.length];
+                    prev.focus();
+                } else if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.currentTarget.click();
+                }
+            });
+
             optionsDiv.appendChild(btn);
+            // focus the first option for quick keyboard access
+            // make all options keyboard-focusable via Tab
+            btn.tabIndex = 0;
         });
         bubbleDiv.appendChild(optionsDiv);
+        // after appending, focus first available option button
+        setTimeout(() => {
+            const first = optionsDiv.querySelector('.option-btn:not(:disabled)');
+            if (first) first.focus();
+        }, 50);
     }
-    
+
     messageDiv.appendChild(bubbleDiv);
     chatMessages.appendChild(messageDiv);
     scrollToBottom();
+
+    // persist structured message
+    messages.push({ sender: isUser ? 'user' : 'bot', text: text, isHtml: !isUser, options: options || null, timestamp: Date.now() });
     saveSession();
 }
 
@@ -257,10 +321,12 @@ window.handleOptionClick = async function(optionId, optionLabel) {
         saveSession();
     } 
     else if (conversationState.step === 'existing_complaint') {
-        if (optionId === 'new') {
+            if (optionId === 'new') {
             addMessage("Por favor, selecione a categoria da sua reclamação:", false, categories.map(cat => ({
                 id: cat.id,
-                label: `${cat.label} - <small>${cat.desc}</small>`
+                labelText: `${cat.labelText || cat.name} - ${cat.labelText ? '' : cat.desc}`.trim(),
+                labelHtml: `${cat.labelHtml || cat.label} - <small>${cat.desc}</small>`,
+                trustedHtml: true
             })));
             conversationState.step = 'category';
             saveSession();
@@ -285,10 +351,10 @@ window.handleOptionClick = async function(optionId, optionLabel) {
             `);
             
             await delay(1500);
-            addMessage("Posso ajudar com mais alguma coisa?", false, [
-                { id: 'new', label: '➕ Registar nova reclamação' },
-                { id: 'human', label: '👤 Falar com assistente sobre isto' },
-                { id: 'exit', label: '❌ Encerrar' }
+                addMessage("Posso ajudar com mais alguma coisa?", false, [
+                { id: 'new', labelText: '➕ Registar nova reclamação', labelHtml: '➕ Registar nova reclamação', trustedHtml: true },
+                { id: 'human', labelText: '👤 Falar com assistente sobre isto', labelHtml: '👤 Falar com assistente sobre isto', trustedHtml: true },
+                { id: 'exit', labelText: '❌ Encerrar', labelHtml: '❌ Encerrar', trustedHtml: true }
             ]);
             
             conversationState.step = 'after_view';
@@ -296,10 +362,12 @@ window.handleOptionClick = async function(optionId, optionLabel) {
         }
     } 
     else if (conversationState.step === 'after_view') {
-        if (optionId === 'new') {
+            if (optionId === 'new') {
             addMessage("Por favor, selecione a categoria da sua reclamação:", false, categories.map(cat => ({
                 id: cat.id,
-                label: `${cat.label} - <small>${cat.desc}</small>`
+                labelText: `${cat.labelText || cat.name} - ${cat.labelText ? '' : cat.desc}`.trim(),
+                labelHtml: `${cat.labelHtml || cat.label} - <small>${cat.desc}</small>`,
+                trustedHtml: true
             })));
             conversationState.step = 'category';
             saveSession();
@@ -324,7 +392,7 @@ window.handleOptionClick = async function(optionId, optionLabel) {
     else if (conversationState.step === 'category') {
         conversationState.category = optionId;
         const selectedCat = categories.find(c => c.id === optionId);
-        updateSessionStatus(`Categoria: ${selectedCat.label.split(' ')[1]}`);
+        updateSessionStatus(`Categoria: ${selectedCat.name}`);
         
         addMessage("Por favor, descreva detalhadamente o motivo da sua reclamação:");
         conversationState.step = 'description';
@@ -379,8 +447,9 @@ async function handleUserMessage() {
     sendBtn.disabled = true;
     
     if (conversationState.step === 'awaiting_id_input') {
-        if (text.length < 7) {
-            addMessage("❌ O formato introduzido parece incorreto. Por favor, tente novamente.");
+        const idType = conversationState.userData.identificationType;
+        if (!validateIdentification(idType, text)) {
+            addMessage("❌ O formato introduzido parece incorreto para o tipo selecionado. Por favor, tente novamente.");
             userInput.disabled = false;
             sendBtn.disabled = false;
             userInput.focus();
@@ -414,9 +483,9 @@ async function handleUserMessage() {
                 
                 await delay(1000);
                 addMessage("Como deseja proceder?", false, [
-                    { id: 'view', label: '👁️ Ver estado detalhado' },
-                    { id: 'new', label: '➕ Registar nova reclamação' },
-                    { id: 'exit', label: '❌ Sair' }
+                    { id: 'view', labelText: '👁️ Ver estado detalhado', labelHtml: '👁️ Ver estado detalhado', trustedHtml: true },
+                    { id: 'new', labelText: '➕ Registar nova reclamação', labelHtml: '➕ Registar nova reclamaação', trustedHtml: true },
+                    { id: 'exit', labelText: '❌ Sair', labelHtml: '❌ Sair', trustedHtml: true }
                 ]);
                 conversationState.step = 'existing_complaint';
             } else {
@@ -424,7 +493,9 @@ async function handleUserMessage() {
                 await delay(1000);
                 addMessage("Por favor, selecione a categoria da sua reclamação:", false, categories.map(cat => ({
                     id: cat.id,
-                    label: `${cat.label} - <small>${cat.desc}</small>`
+                    labelText: `${cat.labelText || cat.name} - ${cat.labelText ? '' : cat.desc}`.trim(),
+                    labelHtml: `${cat.labelHtml || cat.label} - <small>${cat.desc}</small>`,
+                    trustedHtml: true
                 })));
                 conversationState.step = 'category';
             }
@@ -456,10 +527,10 @@ async function handleUserMessage() {
         if (conversationState.critical) {
             addMessage("⚠️ <strong>Atenção:</strong> Detectei que esta situação envolve termos críticos e pode requerer prioridade legal ou técnica máxima.");
             await delay(1000);
-            addMessage("Como deseja proceder?", false, [
-                { id: 'human', label: '👤 Transferir para assistente humano agora' },
-                { id: 'continue', label: '✅ Manter registo automático normal' }
-            ]);
+                addMessage("Como deseja proceder?", false, [
+                    { id: 'human', labelText: '👤 Transferir para assistente humano agora', labelHtml: '👤 Transferir para assistente humano agora', trustedHtml: true },
+                    { id: 'continue', labelText: '✅ Manter registo automático normal', labelHtml: '✅ Manter registo automático normal', trustedHtml: true }
+                ]);
             conversationState.step = 'critical_decision';
             saveSession();
         } else {
@@ -487,7 +558,7 @@ async function processNonCriticalComplaint() {
                 <div>📋 PROTOCOLO DE RECLAMAÇÃO</div>
                 <div class="protocol-number">${protocol}</div>
                 <div style="font-size: 13px; opacity: 0.9; margin-top: 10px;">
-                    Categoria: ${categories.find(c => c.id === conversationState.category).label.split(' ')[1]}<br>
+                        Categoria: ${categories.find(c => c.id === conversationState.category).name}<br>
                     Data: ${new Date().toLocaleDateString('pt-PT')}<br>
                     Prazo de resolução: 5 dias úteis
                 </div>
@@ -500,12 +571,12 @@ async function processNonCriticalComplaint() {
         addMessage("📧 Enviámos uma confirmação para o seu email com os detalhes e prazos (SLA).");
         
         await delay(1500);
-        addMessage("Como avalia a sua experiência com o Alou hoje?", false, [
-            { id: 'great', label: '😄 Excelente' },
-            { id: 'good', label: '🙂 Bom' },
-            { id: 'ok', label: '😐 Razoável' },
-            { id: 'bad', label: '😞 Insatisfeito' }
-        ]);
+                addMessage("Como avalia a sua experiência com o Alou hoje?", false, [
+                    { id: 'great', labelText: '😄 Excelente', labelHtml: '😄 Excelente', trustedHtml: true },
+                    { id: 'good', labelText: '🙂 Bom', labelHtml: '🙂 Bom', trustedHtml: true },
+                    { id: 'ok', labelText: '😐 Razoável', labelHtml: '😐 Razoável', trustedHtml: true },
+                    { id: 'bad', labelText: '😞 Insatisfeito', labelHtml: '😞 Insatisfeito', trustedHtml: true }
+                ]);
         conversationState.step = 'satisfaction';
         saveSession();
 
@@ -514,7 +585,7 @@ async function processNonCriticalComplaint() {
         updateSessionStatus('Erro no Registo', 'error');
         addMessage(`⚠️ <strong>Erro:</strong> ${error.message}`);
         addMessage("Os nossos sistemas estão temporariamente indisponíveis. A sua sessão foi guardada. Deseja tentar submeter novamente?", false, [
-            { id: 'retry', label: '🔄 Tentar Novamente' }
+            { id: 'retry', labelText: '🔄 Tentar Novamente', labelHtml: '🔄 Tentar Novamente', trustedHtml: true }
         ]);
         conversationState.step = 'retry_submission';
         // keep main handler and use a dedicated branch for retry (avoids overwriting global handler)
@@ -525,13 +596,14 @@ async function processNonCriticalComplaint() {
 function showRestartButton() {
     const restartDiv = document.createElement('div');
     restartDiv.className = 'message bot';
-    restartDiv.innerHTML = `
-        <div class="message-bubble">
-            <button class="restart-btn" onclick="clearSession()">
-                🔄 Iniciar Nova Reclamação
-            </button>
-        </div>
-    `;
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble';
+    const btn = document.createElement('button');
+    btn.className = 'restart-btn';
+    btn.textContent = '🔄 Iniciar Nova Reclamação';
+    btn.addEventListener('click', () => clearSession());
+    bubble.appendChild(btn);
+    restartDiv.appendChild(bubble);
     chatMessages.appendChild(restartDiv);
     scrollToBottom();
     saveSession();
@@ -548,12 +620,55 @@ function initChatbot() {
     if (savedSession) {
         try {
             const data = JSON.parse(savedSession);
-            conversationState = data.state;
-            chatMessages.innerHTML = data.html;
-            sessionStatus.textContent = data.statusText;
-            statusBadge.className = data.badgeClass;
-            statusBadge.textContent = data.badgeText;
+            conversationState = data.state || conversationState;
+            messages = data.messages || [];
+            sessionStatus.textContent = data.statusText || sessionStatus.textContent;
+            statusBadge.className = data.badgeClass || statusBadge.className;
+            statusBadge.textContent = data.badgeText || statusBadge.textContent;
             initMetrics();
+
+            // render saved messages safely
+            chatMessages.innerHTML = '';
+            messages.forEach(m => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${m.sender === 'user' ? 'user' : 'bot'}`;
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                bubble.setAttribute('role','article');
+                bubble.setAttribute('aria-label', m.sender === 'user' ? 'Mensagem do utilizador' : 'Mensagem do assistente');
+                if (m.sender === 'user') bubble.textContent = m.text;
+                else bubble.innerHTML = m.text;
+                if (m.options) {
+                    const opts = document.createElement('div');
+                    opts.className = 'options';
+                    opts.setAttribute('role','list');
+                    m.options.forEach((o, idx) => {
+                        const b = document.createElement('button');
+                        b.className = 'option-btn';
+                        b.setAttribute('role','option');
+                        if (o.labelText) b.textContent = o.labelText;
+                        else if (o.label) b.textContent = o.label;
+                        if (o.trustedHtml && o.labelHtml) b.innerHTML = o.labelHtml;
+                        b.setAttribute('aria-label', `Opção: ${o.labelText || o.label || o.id}`);
+                        b.addEventListener('click', () => { if (window.handleOptionClick) window.handleOptionClick(o.id, o.labelText || o.label || o.id); });
+                        b.addEventListener('keydown', (e) => {
+                            const focusable = Array.from(opts.querySelectorAll('.option-btn'));
+                            const i = focusable.indexOf(e.currentTarget);
+                            if (e.key === 'ArrowDown') { e.preventDefault(); focusable[(i+1)%focusable.length].focus(); }
+                            else if (e.key === 'ArrowUp') { e.preventDefault(); focusable[(i-1+focusable.length)%focusable.length].focus(); }
+                            else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+                        });
+                        // make all saved options keyboard-focusable
+                        b.tabIndex = 0;
+                        opts.appendChild(b);
+                    });
+                    bubble.appendChild(opts);
+                    setTimeout(() => { const first = opts.querySelector('.option-btn:not(:disabled)'); if (first) first.focus(); }, 50);
+                }
+                msgDiv.appendChild(bubble);
+                chatMessages.appendChild(msgDiv);
+            });
+
             addMessage("🔄 <em>Sessão recuperada. Pode continuar de onde parou.</em>");
 
             if (['awaiting_id_input', 'description'].includes(conversationState.step)) {
@@ -583,9 +698,9 @@ function initChatbot() {
         startSessionTimer();
 
         addMessage("Para começar, preciso validar a sua identidade. Como deseja identificar-se?", false, [
-            { id: 'nif', label: '🔢 NIF' },
-            { id: 'conta', label: '📱 Número da Conta' },
-            { id: 'telemovel', label: '📞 Número de Telemóvel' }
+            { id: 'nif', labelText: '🔢 NIF', labelHtml: '🔢 NIF', trustedHtml: true },
+            { id: 'conta', labelText: '📱 Número da Conta', labelHtml: '📱 Número da Conta', trustedHtml: true },
+            { id: 'telemovel', labelText: '📞 Número de Telemóvel', labelHtml: '📞 Número de Telemóvel', trustedHtml: true }
         ]);
         conversationState.step = 'identification';
         saveSession();
