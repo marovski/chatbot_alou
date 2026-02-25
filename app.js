@@ -721,7 +721,7 @@ function initChatbot() {
 
         addMessage("Para começar, preciso validar a sua identidade. Como deseja identificar-se?", false, [
             { id: 'nif', labelText: '🔢 NIF', labelHtml: '🔢 NIF', trustedHtml: true },
-            { id: 'conta', labelText: '📱 Número da Conta', labelHtml: '📱 Número da Conta', trustedHtml: true },
+            { id: 'conta', labelText: '📱 Número de Cliente', labelHtml: '📱 Número de Cliente', trustedHtml: true },
             { id: 'telemovel', labelText: '📞 Número de Telemóvel', labelHtml: '📞 Número de Telemóvel', trustedHtml: true }
         ]);
         conversationState.step = 'identification';
