@@ -62,8 +62,14 @@ const mockAPI = {
 
 // 3. NLP / KEYWORD ANALYSIS
 const analyzeCriticality = (text) => {
-    const criticalKeywords = ['arme', 'advogado', 'cancelar', 'tribunal', 'urgente', 'polícia', 'processo'];
-    return criticalKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    const criticalKeywords = [
+        'arme', 'advogado', 'cancelar', 'tribunal', 'urgente',
+        'polícia', 'processo', 'rescisão', 'jurídico',
+        'rescindir', 'ação', 'litígio', 'contencioso', 'resolução civil',
+        'matar', 'assassinar', 'ameaça', 'violência', 'agressão'
+    ];
+    const lowerText = text.toLowerCase();
+    return criticalKeywords.some(keyword => lowerText.includes(keyword));
 };
 
 // UI Elements
@@ -91,18 +97,28 @@ async function delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)
 function validateIdentification(type, value) {
     if (!type || !value) return false;
     const v = value.trim();
-    switch (type) {
-        case 'nif':
-            // NIF em Cabo Verde tem 7 dígitos numéricos
-            return /^[0-9]{7}$/.test(v);
-        case 'conta':
-            return /^[0-9]{6,12}$/.test(v);
-        case 'telemovel':
-            // Telemovel in this context should be 7 digits
-            return /^[0-9]{7}$/.test(v);
-        default:
-            return v.length >= 3;
-    }
+    const validationRules = {
+        nif: {
+            pattern: /^[0-9]{7}$/,
+            message: 'NIF deve conter exatamente 7 dígitos (ex: 1234567)'
+        },
+        conta: {
+            pattern: /^[0-9]{6,12}$/,
+            message: 'Conta deve conter entre 6 e 12 dígitos (ex: 123456789)'
+        },
+        telemovel: {
+            pattern: /^[0-9]{7}$/,
+            message: 'Telemóvel deve conter exatamente 7 dígitos (ex: 9912345)'
+        },
+        default: {
+            pattern: /.{3,}/,
+            message: 'Valor deve ter pelo menos 3 caracteres'
+        }
+    };
+    
+    const rule = validationRules[type] || validationRules.default;
+    conversationState.lastValidationError = rule.message;
+    return rule.pattern.test(v);
 }
 
 // --- METRICS & DYNAMIC KPIs ---
@@ -199,10 +215,15 @@ function recordTransferToHuman() {
 function recordSatisfaction(optionId) {
     const mapping = { great: 10, good: 8, ok: 6, bad: 3 };
     const score = mapping[optionId];
-    if (!score) return;
+    if (score === undefined) return;
     const m = conversationState.metrics;
     if (!m) return;
     m.npsScores.push(score);
+    // Calculate and log NPS immediately after recording satisfaction
+    const promoters = (m.npsScores || []).filter(s => s >= 9).length;
+    const detractors = (m.npsScores || []).filter(s => s <= 6).length;
+    const nps = m.npsScores.length > 0 ? Math.round(((promoters - detractors) / m.npsScores.length) * 100) : 0;
+    console.log(`NPS Updated: ${nps} (Promoters: ${promoters}, Detractors: ${detractors}, Total: ${m.npsScores.length})`);
     updateKpis();
     saveSession();
 }
@@ -449,7 +470,8 @@ async function handleUserMessage() {
     if (conversationState.step === 'awaiting_id_input') {
         const idType = conversationState.userData.identificationType;
         if (!validateIdentification(idType, text)) {
-            addMessage("❌ O formato introduzido parece incorreto para o tipo selecionado. Por favor, tente novamente.");
+            const errorMsg = conversationState.lastValidationError || "❌ O formato introduzido parece incorreto para o tipo selecionado. Por favor, tente novamente.";
+            addMessage(`❌ ${errorMsg}`);
             userInput.disabled = false;
             sendBtn.disabled = false;
             userInput.focus();
@@ -710,7 +732,26 @@ function initChatbot() {
 // Event listeners
 sendBtn.addEventListener('click', handleUserMessage);
 userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleUserMessage();
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleUserMessage();
+    }
+});
+
+// Keyboard accessibility: Allow Escape to focus chat input
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.activeElement !== userInput) {
+        userInput.focus();
+    }
+});
+
+// Enhanced keyboard navigation for options
+document.addEventListener('keydown', (e) => {
+    const focusedOption = document.querySelector('.option-btn:focus');
+    if (focusedOption && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        focusedOption.click();
+    }
 });
 
 // Start

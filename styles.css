@@ -1,4 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Screen reader only content */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1A2D5A 0%, #2C4A7C 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
 .container { position: relative; max-width: 900px; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
 .chat-container { display: flex; flex-direction: column; height: 600px; }
@@ -53,6 +57,63 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .protocol-number { font-size: 24px; font-weight: bold; letter-spacing: 2px; margin: 10px 0; }
 .restart-btn { background: #E8322A; color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; font-weight: 600; margin-top: 15px; width: 100%; transition: all 0.3s ease; }
 .restart-btn:hover { background: #C42A22; transform: scale(1.02); }
-@media (max-width: 768px) { .container { grid-template-columns: 1fr; } .info-panel { order: -1; padding: 20px; } }
+/* Responsive Design - Tablet (768px to 1024px) */
+@media (max-width: 1024px) {
+    .container { grid-template-columns: 1fr; }
+    .info-panel { order: -1; padding: 20px; grid-column: 1; }
+    .chat-container { height: 500px; grid-column: 1; }
+}
+
+/* Responsive Design - Mobile (< 768px) */
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    .container { grid-template-columns: 1fr; gap: 15px; border-radius: 15px; }
+    .info-panel { order: -1; padding: 15px; }
+    .chat-container { height: 450px; }
+    .chat-header { padding: 15px; gap: 10px; }
+    .bot-avatar { width: 40px; height: 40px; font-size: 20px; }
+    .header-info h2 { font-size: 18px; }
+    .header-info p { font-size: 11px; }
+    .chat-messages { padding: 15px; }
+    .message-bubble { max-width: 85%; padding: 10px 14px; font-size: 14px; }
+    .option-btn { padding: 9px 14px; font-size: 13px; }
+    .chat-input { gap: 8px; }
+    .chat-input input { padding: 10px 14px; font-size: 13px; }
+    .send-btn { padding: 10px 16px; font-size: 13px; }
+    .info-section { padding: 15px; }
+    .info-section h3 { font-size: 15px; }
+    .info-section p { font-size: 12px; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kpi-value { font-size: 18px; }
+    .kpi-label { font-size: 10px; }
+    .restart-btn { padding: 10px 16px; font-size: 13px; }
+    .protocol-card { padding: 15px; }
+    .protocol-number { font-size: 20px; }
+}
+
+/* Extra-small devices (< 480px) */
+@media (max-width: 480px) {
+    .container { gap: 10px; }
+    .chat-container { height: 400px; }
+    .message-bubble { max-width: 90%; }
+    .option-btn { padding: 8px 12px; font-size: 12px; }
+    .kpi-grid { grid-template-columns: 1fr; }
+}
+
 .cvtelecom-logo { position: absolute; right: 18px; bottom: 18px; width: 96px; height: auto; opacity: 0.95; pointer-events: none; }
 @media (max-width: 768px) { .cvtelecom-logo { right: 12px; bottom: 12px; width: 72px; } }
+
+/* Enhanced focus states for keyboard navigation */
+input:focus, button:focus { outline: 3px solid rgba(0, 169, 165, 0.5); outline-offset: 2px; }
+
+/* Improved contrast for accessibility */
+@media (prefers-contrast: more) {
+    .message.bot .message-bubble { color: #000; }
+    .message.user .message-bubble { color: #fff; }
+    .option-btn { border-width: 3px; }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

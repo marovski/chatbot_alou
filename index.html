@@ -3,63 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Alou CVT - Assistente Virtual de Reclamações da CVTelecom. Registre sua reclamação de forma rápida, segura e acessível, 24/7.">
     <title>Chatbot Alou CVT - Registo de Reclamações</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <div class="container" role="main" aria-label="Chatbot Alou CVT - Sistema de Registo de Reclamações">
         <div class="chat-container">
-            <div class="chat-header">
-                <div class="bot-avatar">
+            <header class="chat-header">
+                <div class="bot-avatar" aria-hidden="true">
                     <img src="chatbotAlouLogo.png" alt="Alou Logo" onerror="this.style.display='none'" />
                 </div>
                 <div class="header-info">
-                    <h2>Alou CVT</h2>
+                    <h1>Alou CVT</h1>
                     <p>Assistente Virtual de Reclamações</p>
                 </div>
-            </div>
+            </header>
             
-            <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-atomic="false" tabindex="0"></div>
+            <main class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-atomic="false" aria-label="Histórico de conversa" tabindex="0"></main>
             
-            <div class="chat-input-container">
-                <div class="chat-input">
-                    <input type="text" id="userInput" placeholder="Digite sua mensagem..." aria-label="Mensagem" disabled>
+            <footer class="chat-input-container">
+                <form class="chat-input" onsubmit="handleUserMessage(); return false;" aria-label="Formulário de entrada de mensagem">
+                    <input 
+                        type="text" 
+                        id="userInput" 
+                        placeholder="Digite sua mensagem..." 
+                        aria-label="Campo de entrada de mensagem" 
+                        aria-describedby="inputHelp"
+                        disabled
+                        autocomplete="off">
                     <button class="send-btn" id="sendBtn" aria-label="Enviar mensagem" disabled>Enviar</button>
-                </div>
-            </div>
+                </form>
+                <span id="inputHelp" class="sr-only">Pressione Enter ou clique em Enviar para submeter sua mensagem. Use Tab para navegar entre botões de opção.</span>
+            </footer>
         </div>
         
-        <div class="info-panel">
-            <div class="info-section">
-                <h3>📊 Estado da Sessão</h3>
-                <p id="sessionStatus" role="status" aria-live="polite">Aguardando identificação</p>
-                <span class="status-badge pending" id="statusBadge" aria-hidden="false">Em Progresso</span>
-            </div>
+        <aside class="info-panel" aria-label="Painel de informações da sessão">
+            <section class="info-section">
+                <h2>📊 Estado da Sessão</h2>
+                <p id="sessionStatus" role="status" aria-live="polite" aria-atomic="true">Aguardando identificação</p>
+                <span class="status-badge pending" id="statusBadge" aria-live="assertive">Em Progresso</span>
+            </section>
             
-            <div class="info-section">
-                <h3>📈 KPIs do Sistema</h3>
+            <section class="info-section">
+                <h2>📈 KPIs do Sistema</h2>
                 <div class="kpi-grid">
-                    <div class="kpi-card">
-                            <div class="kpi-value" id="kpiContainment">72%</div>
-                        <div class="kpi-label">Containment Rate</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="kpiTmr">2.5min</div>
+                    <article class="kpi-card" aria-label="Taxa de Contenção">
+                        <div class="kpi-value" id="kpiContainment" aria-live="polite">72%</div>
+                        <div class="kpi-label">Taxa de Contenção</div>
+                    </article>
+                    <article class="kpi-card" aria-label="TMR Médio">
+                        <div class="kpi-value" id="kpiTmr" aria-live="polite">2.5min</div>
                         <div class="kpi-label">TMR Médio</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="kpiNps">43</div>
+                    </article>
+                    <article class="kpi-card" aria-label="NPS">
+                        <div class="kpi-value" id="kpiNps" aria-live="polite">43</div>
                         <div class="kpi-label">NPS</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value" id="kpiAvail">24/7</div>
+                    </article>
+                    <article class="kpi-card" aria-label="Disponibilidade">
+                        <div class="kpi-value" id="kpiAvail" aria-live="polite">24/7</div>
                         <div class="kpi-label">Disponibilidade</div>
-                    </div>
+                    </article>
                 </div>
-            </div>
-        </div>
-        <img src="CVTELECOM.png" alt="CVTelecom" class="cvtelecom-logo" onerror="this.style.display='none'">
+            </section>
+        </aside>
+        <img src="CVTELECOM.png" alt="CVTelecom" class="cvtelecom-logo" onerror="this.style.display='none'" aria-hidden="true">
     </div>
+
+    <!-- Screen reader only skip links -->
+    <a href="#chatMessages" class="sr-only">Ir para histórico de conversa</a>
+    <a href="#userInput" class="sr-only">Ir para campo de entrada</a>
 
     <script src="app.js"></script>
 
