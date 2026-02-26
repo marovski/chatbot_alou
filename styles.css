@@ -123,6 +123,12 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
     .option-btn { padding: 8px 12px; font-size: 12px; }
     .kpi-grid { grid-template-columns: 1fr; }
 }
+@media (max-width: 358px) {
+    .cvtelecom-logo {
+      display: none !important; /* Hides the logo on very small screens */
+    }
+    
+}
 
 .cvtelecom-logo { position: absolute; right: 18px; bottom: 18px; width: 96px; height: auto; opacity: 0.95; pointer-events: none; }
 @media (max-width: 768px) { 
