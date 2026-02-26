@@ -51,7 +51,7 @@ const mockAPI = {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
                 if (Math.random() < 0.1) {
-                    reject(new Error("Falha ao gravar protocolo no sistema central."));
+                    reject(new Error("Falha ao gravar a reclamação no sistema central."));
                 } else {
                     resolve(`RCL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900000) + 100000)}`);
                 }
@@ -364,7 +364,7 @@ window.handleOptionClick = async function(optionId, optionLabel) {
             await delay(1000);
             
             addMessage(`
-                📊 <strong>Detalhes do Protocolo RCL-2025-001234</strong><br><br>
+                📊 <strong>Detalhes da Reclamação - RCL-2025-001234</strong><br><br>
                 <strong>Fase Atual:</strong> Análise Técnica<br>
                 <strong>Data de Registo:</strong> ${new Date(Date.now() - 172800000).toLocaleDateString('pt-PT')}<br>
                 <strong>Última Atualização:</strong> Aguarda verificação da equipa de infraestrutura externa.<br>
@@ -497,7 +497,7 @@ async function handleUserMessage() {
             if (userData.hasExisting) {
                 addMessage("Encontrei uma reclamação já registada no seu nome:");
                 addMessage(`
-                    <strong>Protocolo:</strong> RCL-2025-001234<br>
+                    <strong>Identificação:</strong> RCL-2025-001234<br>
                     <strong>Categoria:</strong> Qualidade de Sinal<br>
                     <strong>Estado:</strong> Em Análise<br>
                     <strong>Prazo:</strong> 2 dias úteis restantes
@@ -574,10 +574,10 @@ async function processNonCriticalComplaint() {
         // mark resolved by bot and record metrics
         endSessionTimer(true);
 
-        addMessage("Reclamação registada com sucesso! Aqui está o seu protocolo:");
+        addMessage("Reclamação registada com sucesso! Aqui está o seu recibo:");
         addMessage(`
             <div class="protocol-card">
-                <div>📋 PROTOCOLO DE RECLAMAÇÃO</div>
+                <div>📋 RECIBO DE RECLAMAÇÃO</div>
                 <div class="protocol-number">${protocol}</div>
                 <div style="font-size: 13px; opacity: 0.9; margin-top: 10px;">
                         Categoria: ${categories.find(c => c.id === conversationState.category).name}<br>
